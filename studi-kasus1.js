@@ -73,30 +73,96 @@ function getTotalStats(char) {
   return equippedItem.reduce((total, item) => {
 
     return Object.entries(item.statBonus).reduce((subTotal, [statKey, statValue]) => {
-        subTotal[statKey] =(subTotal[statKey] || 0) + statValue;
+        subTotal[statKey] = (subTotal[statKey] || 0) + statValue;
         return subTotal;
     }, total);
-  }, { ...char.baseStats});
+  }, {...char.baseStats});
 }
 
 function equipItem(char, itemId) {
   // TODO: Implementasi Misi 2
+  const inven = char.inventory.find(item => item.id === itemId);
+  if(!inven || inven.slot === "consumable") {
+    return char;
+  }
+
+  const {qty, ...equippedItem} = inven;
+  const oldItem = char.equipped[inven.slot];
+  const updateQty = char.inventory.map((item) => item.id === inven.id ? {...item, qty: item.qty -1} : item );
+  const nextInven = updateQty.filter((item) => item.qty > 0);
+  let finalInven = nextInven;
+  if(oldItem) {
+    const findItem = nextInven.find((item) => item.id === oldItem.id);
+    if(findItem) {
+      finalInven = nextInven.map((item) => item.id === oldItem.id ? {...item, qty: item.qty + 1} : item);
+    } else {
+      finalInven = [...nextInven, {...oldItem, qty: 1}];
+    }
+  }
+
+  return {...char, equipped: {...char.equipped, [inven.slot]: equippedItem}, inventory: finalInven, };
 }
 
 function unequipItem(char, slotName) {
   // TODO: Implementasi Misi 3
+  const unEquip = char.equipped[slotName];
+  if(!unEquip) return char;
+  
+  const isExist = char.inventory.find((item) => item.id === unEquip.id);
+  let newInven;
+  if(isExist) {
+    newInven = char.inventory.map((item) => item.id === unEquip.id ? { ...item, qty: item.qty + 1} : item)
+  }else {
+    newInven = [...char.inventory, { ...unEquip, qty: 1}];
+  }
+
+  return {...char, equipped: {...char.equipped, [slotName]: null,}, inventory: newInven};
 }
 
 function useConsumable(char, itemId) {
   // TODO: Implementasi Misi 4
+  const findId = char.inventory.find((item) => item.id === itemId);
+  if(!findId || findId.slot !== "consumable") {
+    return char;
+  }
+
+  const updInven = char.inventory.map((item) => item.id === itemId ? {...item, qty: item.qty - 1}: item).filter((item) => item.qty > 0);
+  const newBaseStats = Object.entries(findId.statBonus).reduce((subTotal, [statKey, statValue]) => {
+        return {...subTotal, [statKey]: (subTotal[statKey] || 0) + statValue,
+    };
+  }, {...char.baseStats});
+
+  return {...char, baseStats: newBaseStats, inventory: updInven};
 }
 
 function getInventorySummary(char) {
   // TODO: Implementasi Misi 5
+  const summary = char.inventory.reduce((catatan, item) => {
+    const rarity = item.rarity;
+    const current = catatan[rarity] || {totalQty: 0, items: []};
+    
+    return {...catatan, [rarity]: {totalQty: current.totalQty + item.qty, items: [...current.items, item.name]},};
+  }, {});
+  return summary;
 }
 
 function findBestUpgrade(char, slotName) {
   // TODO: Implementasi Misi 6
+  const equippedItem = char.equipped[slotName];
+  const currentScore = equippedItem ? Object.values(equippedItem.statBonus).reduce((total, angka) => total + angka, 0): 0;
+
+  const pilihan = char.inventory.filter((item) => item.slot === slotName);
+
+  return pilihan.reduce((best, item) => {
+    const itemScore = Object.values(item.statBonus).reduce((total, angka) => total + angka, 0);
+    const scoreGain = itemScore - currentScore;
+
+    if (scoreGain > 0 && (!best || scoreGain > best.scoreGain)) {
+      return { itemName: item.name, scoreGain };
+    }
+
+    return best;
+  }, null);
 }
 
 // ==========================================
